@@ -7,7 +7,9 @@ export const loadNotes = async () => {
     const jsonValue = await AsyncStorage.getItem(NOTES_KEY);
     const notes = jsonValue != null ? JSON.parse(jsonValue) : [];
     return notes.map((note) => ({
-      ...note,
+      id: note.id || '',
+      title: note.title || '',
+      content: note.content || '', // Assurer que content est toujours défini
       images: note.images || [],
       backgroundImage: note.backgroundImage || null,
     }));
@@ -19,6 +21,7 @@ export const loadNotes = async () => {
 
 export const saveNotes = async (notes) => {
   try {
+    console.log('Saving notes to AsyncStorage:', notes); // Debug: vérifier données sauvegardées
     const jsonValue = JSON.stringify(notes);
     await AsyncStorage.setItem(NOTES_KEY, jsonValue);
   } catch (e) {
@@ -27,24 +30,37 @@ export const saveNotes = async (notes) => {
 };
 
 export const addNote = async (newNote) => {
-  const notes = await loadNotes();
-  if (notes.find((note) => note.id === newNote.id)) {
-    console.warn('Note with ID already exists:', newNote.id);
-    return;
+  try {
+    const notes = await loadNotes();
+    if (notes.find((note) => note.id === newNote.id)) {
+      console.warn('Note with ID already exists:', newNote.id);
+      return;
+    }
+    const updatedNotes = [...notes, { ...newNote, content: newNote.content || '' }];
+    await saveNotes(updatedNotes);
+  } catch (e) {
+    console.error('Error adding note:', e);
   }
-  await saveNotes([...notes, newNote]);
 };
 
 export const updateNote = async (updatedNote) => {
-  const notes = await loadNotes();
-  const updatedNotes = notes.map((note) =>
-    note.id === updatedNote.id ? updatedNote : note
-  );
-  await saveNotes(updatedNotes);
+  try {
+    const notes = await loadNotes();
+    const updatedNotes = notes.map((note) =>
+      note.id === updatedNote.id ? { ...updatedNote, content: updatedNote.content || '' } : note
+    );
+    await saveNotes(updatedNotes);
+  } catch (e) {
+    console.error('Error updating note:', e);
+  }
 };
 
 export const deleteNote = async (id) => {
-  const notes = await loadNotes();
-  const filteredNotes = notes.filter((note) => note.id !== id);
-  await saveNotes(filteredNotes);
+  try {
+    const notes = await loadNotes();
+    const filteredNotes = notes.filter((note) => note.id !== id);
+    await saveNotes(filteredNotes);
+  } catch (e) {
+    console.error('Error deleting note:', e);
+  }
 };

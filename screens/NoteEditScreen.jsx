@@ -24,20 +24,28 @@ const NoteEditScreen = ({ route, navigation }) => {
   // Charger la note existante ou la nouvelle
   useEffect(() => {
     const loadNote = async () => {
-      const notes = await loadNotes();
-      if (isNew && newNote) {
-        setTitle(newNote.title || '');
-        setContent(newNote.content || '');
-        setInitialTitle(newNote.title || '');
-        setInitialContent(newNote.content || '');
-      } else {
-        const note = notes.find(n => n.id === noteId);
-        if (note) {
-          setTitle(note.title || '');
-          setContent(note.content || '');
-          setInitialTitle(note.title || '');
-          setInitialContent(note.content || '');
+      try {
+        const notes = await loadNotes();
+        if (isNew && newNote) {
+          setTitle(newNote.title || '');
+          setContent(newNote.content || '');
+          setInitialTitle(newNote.title || '');
+          setInitialContent(newNote.content || '');
+        } else {
+          const note = notes.find(n => n.id === noteId);
+          if (note) {
+            setTitle(note.title || '');
+            setContent(note.content || '');
+            setInitialTitle(note.title || '');
+            setInitialContent(note.content || '');
+          } else {
+            console.warn('Note not found for ID:', noteId);
+          }
         }
+        console.log('Loaded note - title:', title, 'content:', content);
+      } catch (error) {
+        console.error('Error loading note:', error);
+        Alert.alert('Erreur', 'Échec du chargement de la note.');
       }
     };
     loadNote();
@@ -51,6 +59,7 @@ const NoteEditScreen = ({ route, navigation }) => {
         <Button
           title="Enregistrer"
           onPress={() => {
+            console.log('Before save alert - title:', title, 'content:', content);
             Alert.alert(
               'Confirmer l\'enregistrement',
               'Voulez-vous enregistrer cette note ?',
@@ -58,7 +67,7 @@ const NoteEditScreen = ({ route, navigation }) => {
                 { text: 'Annuler', style: 'cancel', onPress: () => {} },
                 {
                   text: 'Confirmer',
-                  onPress: handleSave,
+                  onPress: () => handleSave(title, content), // Passer title et content
                 },
               ]
             );
@@ -66,22 +75,29 @@ const NoteEditScreen = ({ route, navigation }) => {
         />
       ),
     });
-  }, [title, navigation]);
+  }, [title, content, navigation]); // Ajout de content comme dépendance
 
   // Détecter les modifications
   useEffect(() => {
     setIsModified(title !== initialTitle || content !== initialContent);
+    console.log('Modification check - title:', title, 'content:', content);
   }, [title, content, initialTitle, initialContent]);
+
+  // Détecter les changements de content
+  useEffect(() => {
+    console.log('Content state changed:', content);
+  }, [content]);
 
   // Gérer le retour (bouton back logiciel ou physique)
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       if (!isModified) {
-        return; // Laisser la navigation se faire si aucune modification
+        return;
       }
 
       e.preventDefault();
 
+      console.log('Before remove - title:', title, 'content:', content);
       Alert.alert(
         'Modifications non enregistrées',
         'Voulez-vous enregistrer vos modifications avant de quitter ?',
@@ -90,14 +106,11 @@ const NoteEditScreen = ({ route, navigation }) => {
           {
             text: 'Quitter sans enregistrer',
             style: 'destructive',
-            onPress: () => navigation.navigate('NotesList'), // Naviguer directement
+            onPress: () => navigation.navigate('NotesList'),
           },
           {
             text: 'Enregistrer',
-            onPress: async () => {
-              await handleSave();
-              navigation.navigate('NotesList'); // Naviguer directement
-            },
+            onPress: () => handleSave(title, content), // Passer title et content
           },
         ]
       );
@@ -107,44 +120,59 @@ const NoteEditScreen = ({ route, navigation }) => {
   }, [navigation, isModified, title, content, noteId, isNew]);
 
   // Fonction pour sauvegarder manuellement la note
-  const handleSave = async () => {
+  const handleSave = async (saveTitle, saveContent) => {
     try {
-      const updatedNote = { id: noteId, title, content };
+      console.log('Saving note:', { id: noteId, title: saveTitle, content: saveContent });
+      const updatedNote = { id: noteId, title: saveTitle, content: saveContent };
       const notes = await loadNotes();
+      console.log('Current notes before save:', notes);
       if (isNew && !notes.find(n => n.id === noteId)) {
         await addNote(updatedNote);
       } else {
         await updateNote(updatedNote);
       }
+      const updatedNotes = await loadNotes();
+      console.log('Notes after save:', updatedNotes);
       setIsModified(false);
-      setInitialTitle(title); // Mettre à jour les valeurs initiales
-      setInitialContent(content);
-      navigation.navigate('NotesList'); // Naviguer vers NotesList
+      setInitialTitle(saveTitle);
+      setInitialContent(saveContent);
+      navigation.navigate('NotesList');
     } catch (error) {
+      console.error('Error saving note:', error);
       Alert.alert('Erreur', 'Échec de l\'enregistrement de la note.');
-      console.error(error);
     }
   };
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: 'white' }]} // Fond blanc
+      style={[styles.container, { backgroundColor: 'white' }]}
       contentContainerStyle={styles.contentContainer}
     >
       <TextInput
-        style={[styles.title, { color: colorScheme === 'dark' ? '#333' : 'black' }]} // Texte lisible sur fond blanc
+        style={[styles.title, { color: colorScheme === 'dark' ? '#333' : 'black' }]}
         placeholder="Titre"
-        placeholderTextColor={colorScheme === 'dark' ? '#666' : '#6B7280'} // Placeholder lisible
+        placeholderTextColor={colorScheme === 'dark' ? '#666' : '#6B7280'}
         value={title}
-        onChangeText={setTitle}
+        onChangeText={(text) => {
+          console.log('Title updated:', text);
+          setTitle(text);
+        }}
       />
       <TextInput
-        style={[styles.content, { color: colorScheme === 'dark' ? '#333' : 'black' }]} // Texte lisible sur fond blanc
+        style={[styles.content, { color: colorScheme === 'dark' ? '#333' : 'black' }]}
         placeholder="Contenu"
-        placeholderTextColor={colorScheme === 'dark' ? '#666' : '#6B7280'} // Placeholder lisible
+        placeholderTextColor={colorScheme === 'dark' ? '#666' : '#6B7280'}
         value={content}
-        onChangeText={setContent}
+        onChangeText={(text) => {
+          console.log('Content updated:', text);
+          setContent(text);
+        }}
+        onEndEditing={(e) => {
+          console.log('Content editing ended:', e.nativeEvent.text);
+          setContent(e.nativeEvent.text); // Verrouiller la valeur
+        }}
         multiline
+        textAlignVertical="top"
       />
     </ScrollView>
   );
@@ -153,8 +181,8 @@ const NoteEditScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   contentContainer: { padding: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, backgroundColor: 'white' }, // Fond blanc pour cohérence
-  content: { flex: 1, marginBottom: 16, backgroundColor: 'white' }, // Fond blanc pour cohérence
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, backgroundColor: 'white' },
+  content: { flex: 1, marginBottom: 16, backgroundColor: 'white', minHeight: 200 },
 });
 
 export default NoteEditScreen;

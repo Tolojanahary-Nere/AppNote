@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Crypto from 'expo-crypto';
-import * as ImagePicker from 'expo-image-picker'; // Importer expo-image-picker
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Pour stocker l'image
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadNotes } from '../utils/storage';
 import NoteCard from '../components/NoteCard';
 
@@ -23,7 +23,14 @@ const NotesListScreen = () => {
   const [notes, setNotes] = useState([]);
   const [filteredNotes, setFilteredNotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [backgroundImage, setBackgroundImage] = useState(require('../assets/default-bg.jpg')); // Image par défaut
+  const [backgroundImage, setBackgroundImage] = useState(require('../assets/default-bg.jpg'));
+
+  // Set navigation options to remove back arrow
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => null, // Remove the back arrow
+    });
+  }, [navigation]);
 
   // Charger les notes
   const fetchNotes = async () => {
@@ -39,7 +46,7 @@ const NotesListScreen = () => {
       if (storedImageUri) {
         setBackgroundImage({ uri: storedImageUri });
       } else {
-        setBackgroundImage(require('../assets/default-bg.jpg')); // Image par défaut
+        setBackgroundImage(require('../assets/default-bg.jpg'));
       }
     } catch (error) {
       console.error('Erreur lors du chargement de l\'image de fond:', error);
@@ -49,7 +56,7 @@ const NotesListScreen = () => {
   useFocusEffect(
     useCallback(() => {
       fetchNotes();
-      loadBackgroundImage(); // Charger l'image à chaque focus
+      loadBackgroundImage();
     }, [])
   );
 
@@ -79,14 +86,12 @@ const NotesListScreen = () => {
 
   // Changer l'image de fond
   const handleChangeBackground = async () => {
-    // Demander la permission d'accéder à la galerie
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
       Alert.alert('Permission refusée', 'Vous devez autoriser l\'accès à la galerie pour changer l\'image de fond.');
       return;
     }
 
-    // Lancer le sélecteur d'image
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -96,8 +101,8 @@ const NotesListScreen = () => {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const imageUri = result.assets[0].uri;
       try {
-        await AsyncStorage.setItem('backgroundImage', imageUri); // Stocker l'URI
-        setBackgroundImage({ uri: imageUri }); // Mettre à jour l'image
+        await AsyncStorage.setItem('backgroundImage', imageUri);
+        setBackgroundImage({ uri: imageUri });
       } catch (error) {
         Alert.alert('Erreur', 'Échec de l\'enregistrement de l\'image de fond.');
         console.error(error);
@@ -105,15 +110,25 @@ const NotesListScreen = () => {
     }
   };
 
+  // Réinitialiser l'image de fond
+  const handleResetBackground = async () => {
+    try {
+      await AsyncStorage.removeItem('backgroundImage');
+      setBackgroundImage(require('../assets/default-bg.jpg'));
+      Alert.alert('Succès', 'L\'image de fond a été réinitialisée à l\'image par défaut.');
+    } catch (error) {
+      Alert.alert('Erreur', 'Échec de la réinitialisation de l\'image de fond.');
+      console.error(error);
+    }
+  };
+
   return (
     <ImageBackground
-      source={backgroundImage} // Utiliser l'image dynamique
+      source={backgroundImage}
       style={styles.background}
       resizeMode="cover"
     >
-      {/* Overlay semi-transparent pour lisibilité */}
       <View style={styles.overlay} />
-
       <View style={styles.container}>
         <TextInput
           style={[
@@ -137,12 +152,17 @@ const NotesListScreen = () => {
         <TouchableOpacity style={styles.addButton} onPress={handleAddNote}>
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
-        {/* Bouton pour changer l'image de fond */}
         <TouchableOpacity
           style={[styles.addButton, styles.changeBackgroundButton]}
           onPress={handleChangeBackground}
         >
           <Text style={styles.addButtonText}>🖼️</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.addButton, styles.resetBackgroundButton]}
+          onPress={handleResetBackground}
+        >
+          <Text style={styles.addButtonText}>🔄</Text>
         </TouchableOpacity>
       </View>
     </ImageBackground>
@@ -153,7 +173,7 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)', // Ajuste l'opacité si nécessaire
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   container: {
     flex: 1,
@@ -181,8 +201,12 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   changeBackgroundButton: {
-    bottom: 88, // Positionner au-dessus du bouton d'ajout
-    backgroundColor: '#10b981', // Couleur différente pour distinction
+    bottom: 88,
+    backgroundColor: '#10b981',
+  },
+  resetBackgroundButton: {
+    bottom: 152, // Position au-dessus du bouton de changement d'image
+    backgroundColor: '#ef4444', // Couleur différente pour le bouton de réinitialisation
   },
   addButtonText: {
     color: 'white',

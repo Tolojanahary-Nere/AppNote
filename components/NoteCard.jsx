@@ -31,8 +31,8 @@ const NoteCard = ({ note, onDelete }) => {
     >
       <View style={styles.header}>
         <Text style={styles.title}>{note.title || 'Sans titre'}</Text>
-        <TouchableOpacity onPress={handleDelete}>
-          <Text style={styles.delete}>X</Text>
+        <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+          <Text style={styles.delete}>❌</Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.content} numberOfLines={2}>
@@ -71,8 +71,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'black',
   },
+  deleteButton: {
+    padding: 8, // augmente la zone cliquable
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   delete: {
-    fontSize: 18,
+    fontSize: 28, // icône plus grande
     color: 'red',
   },
   content: {
